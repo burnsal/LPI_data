@@ -1,25 +1,68 @@
 # Load libraries
-
 library(tidyr)
 library(dplyr)
 library(ggplot2)
+library(lubridate)
 
 # read in data
 spikeLPI<-read.csv("./data/Spike.NKS.8-4-2022 V2.csv")
 spikeLPIGather <- read.csv("./data/Spike_LPI_Gather.csv")
 spikeCanopy <- read.csv("./data/CanopyGap20192022Spike.csv")
 
-# 
+# data overview
+str(spikeLPI)
+str(spikeLPIGather)
+str(spikeCanopy)
 
-Site <- spikeLPI$Site
+# closer look at some variables
+spikeLPI %>% count(Site)
+transect_cts <- spikeLPI %>% 
+  group_by(Site) %>% 
+  count(Transect) %>% 
+  pivot_wider(names_from = Site, values_from = n, names_prefix = "Site_")
 
-spikeLPI_group<-spikeLPI %>% 
-  group_by(ï..Site, Transect, Date, Strip, Grazed)
+# max number of points for each site/transect/date combo
+point_cts <- spikeLPI %>%
+  group_by(Site, Transect, Year, Date, Strip, Grazed) %>%
+  summarize(max_points = max(Point))
 
+# collect hit type and species in a longer df
+spikeLPI_longer <- spikeLPI %>%
+  tidyr::pivot_longer(cols = TopCanopy:Lower4, names_to = "HitType", values_to = "HitSpecies")
+
+# make a list of all dead species values
 deadlist<-c("AF.DEAD","AG.DEAD" ,"PF.DEAD", "ARTR4.DEAD", "ARTRV.DEAD", 
-            "TECA2.DEAD","PG.DEAD", "PUTR2.DEAD","PF.DEAD" )
+            "TECA2.DEAD","PG.DEAD", "PUTR2.DEAD","PF.DEAD", "None", NA)
 
-# Change all species to a numeric value of 1 as long as they are not listed as NA
+# Create hit value for living foliage
+spikeLPIGather <- spikeLPI_longer %>% mutate(HitNum = ifelse(HitSpecies %in% deadlist, 0, 1))
+
+# group by time/area vars, species, and sum up hits
+spikeLPIWider <- spikeLPIGather %>% 
+  group_by(Site, Transect, Year, Date, Strip, Grazed, HitSpecies) %>% 
+  summarize(TotalHit = sum(HitNum))
+
+# filter NA hits
+spikeLPIWider <- spikeLPIWider %>% dplyr::filter(!is.na(HitSpecies))
+
+# pivot wider so species are columns
+spikeLPIWider <- spikeLPIWider %>% tidyr::pivot_wider(names_from = HitSpecies, values_from = TotalHit)
+
+spikeLPIWider <- spikeLPIWider %>% 
+  replace(is.na(.), 0)
+  
+# total hits across each date/location over all species
+spikeLPIWider <- spikeLPIWider %>%
+  rowwise() %>% 
+  mutate(TotalHits = sum(across(AF:MARE11)))
+
+spikeLPI_join <- dplyr::left_join(spikeLPIWider, point_cts,
+                                  by = join_by(Site, Transect, Year, Date, Strip, Grazed)) %>%
+  relocate(max_points, .after = Grazed)
+
+
+
+### ==================== JJ drafts
 
 spike_wide <- spikeLPI_group %>%
   mutate_if(is.character, funs(ifelse(is.na(.), 0, 1)))
