@@ -5,3 +5,7 @@
 
 # do not put data on git
 /data/
+.Rdata
+.httr-oauth
+.DS_Store
+.quarto
