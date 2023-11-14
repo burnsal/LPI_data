@@ -56,11 +56,14 @@ spikeLPIWider <- spikeLPIWider %>%
   rowwise() %>% 
   mutate(TotalHits = sum(across(AF:MARE11)))
 
+# join max number of points
 spikeLPI_join <- dplyr::left_join(spikeLPIWider, point_cts,
                                   by = join_by(Site, Transect, Year, Date, Strip, Grazed)) %>%
   relocate(max_points, .after = Grazed)
 
-
+# add column for percentage cover
+spikeLPI_join <- spikeLPI_join %>%
+  mutate(PercentCover = (TotalHits/max_points) * 100)
 
 ### ==================== JJ drafts
 
