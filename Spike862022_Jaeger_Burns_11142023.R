@@ -65,6 +65,11 @@ spikeLPI_join <- dplyr::left_join(spikeLPIWider, point_cts,
 spikeLPI_join <- spikeLPI_join %>%
   mutate(PercentCover = (TotalHits/max_points) * 100)
 
+# create new df for percentage hits by species
+spikeLPI_percenthit <- spikeLPI_join %>%
+  dplyr::mutate(across(AF:MARE11, ~ (.x / TotalHits)*100))
+
+
 ### ==================== JJ drafts
 
 spike_wide <- spikeLPI_group %>%
